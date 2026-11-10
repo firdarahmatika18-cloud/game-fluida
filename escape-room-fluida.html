@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Escape Room Fluida</title>
+<style>
+:root{--deep:#0a1f28;--hull:#143a46;--lamp:#ffb02e;--sea:#2f93ad;--ink:#e9f2f3;--mute:#9fb9bf;--bad:#ff6a5c;--good:#7fd6b0}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--deep);color:var(--ink);font:17px/1.65 Georgia,"Times New Roman",serif;min-height:100vh}
+#w{position:fixed;left:0;right:0;bottom:0;height:20%;background:linear-gradient(#2f93ad55,#1c5f7aaa);border-top:2px solid #6fc3d855;transition:height .9s ease;z-index:0;pointer-events:none}
+#hud{position:sticky;top:0;z-index:3;background:#0a1f28ee;border-bottom:1px solid #2f93ad55;padding:calc(8px + env(safe-area-inset-top)) 14px 8px;display:flex;gap:12px;align-items:center;justify-content:space-between;font:14px/1.3 "Trebuchet MS",Verdana,sans-serif}
+#hud .r{color:var(--mute)}
+.bar{flex:1;height:10px;background:#143a46;border-radius:6px;overflow:hidden;max-width:140px}
+.bar i{display:block;height:100%;background:var(--sea);transition:width .9s}
+.bar.hi i{background:var(--bad)}
+.slots{display:flex;gap:5px}
+.slots b{width:24px;height:30px;border:1px solid var(--lamp);border-radius:4px;display:grid;place-items:center;font:700 17px "Courier New",monospace;color:var(--lamp)}
+main{position:relative;z-index:1;max-width:620px;margin:0 auto;padding:18px 16px calc(60px + env(safe-area-inset-bottom))}
+h1{font:700 30px/1.2 "Trebuchet MS",Verdana,sans-serif;margin:.4em 0 .3em}
+h2{font:700 24px/1.25 "Trebuchet MS",Verdana,sans-serif;margin:.2em 0 0}
+.tp{color:var(--lamp);font:15px "Trebuchet MS",Verdana,sans-serif;margin:.1em 0 1em}
+p{margin:.7em 0}
+.warn{border-left:4px solid var(--bad);padding:2px 0 2px 12px;color:#ffd5cf}
+.q{background:var(--hull);border:1px solid #2f93ad66;border-radius:10px;padding:12px 14px;margin:16px 0}
+button{font:700 16px "Trebuchet MS",Verdana,sans-serif;border-radius:10px;padding:12px 16px;cursor:pointer;min-height:46px;color:var(--ink);background:var(--hull);border:1px solid #2f93ad88}
+button:focus-visible,input:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
+.opt{display:block;width:100%;text-align:left;margin:8px 0;font-weight:400;font-family:Georgia,serif}
+.opt.on{border-color:var(--lamp);background:#3a3216}
+.go{background:var(--lamp);color:#1b1500;border-color:var(--lamp)}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}
+.in{display:flex;gap:10px;align-items:center;margin:10px 0}
+input{font:700 22px "Courier New",monospace;background:#071a21;color:var(--lamp);border:2px solid var(--sea);border-radius:8px;padding:8px 12px;width:150px}
+input.nm{width:100%;font:18px Georgia,serif;color:var(--ink)}
+.hint{color:var(--lamp);border:1px dashed var(--lamp);border-radius:8px;padding:8px 12px}
+.bad{color:var(--bad);font-weight:700}
+.ok{border:1px solid var(--good);border-radius:10px;padding:4px 14px 12px;background:#12332b}
+.dig{font:700 20px "Trebuchet MS",sans-serif;color:var(--lamp)}
+.dig b{display:inline-grid;place-items:center;width:40px;height:48px;border:2px solid var(--lamp);border-radius:6px;font:700 28px "Courier New",monospace;margin-left:6px}
+.shake{animation:sh .4s}
+@keyframes sh{25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+@media (prefers-reduced-motion:reduce){#w,.bar i{transition:none}.shake{animation:none}}
+#mu{min-height:34px;padding:2px 8px;font-size:16px}#rn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:28%}.fm{border-left:4px solid var(--lamp);background:var(--hull);padding:8px 14px;border-radius:0 8px 8px 0;font:16px/1.8 "Trebuchet MS",Verdana,sans-serif}.gr{margin-top:28px;color:var(--mute);font:14px "Trebuchet MS",sans-serif}.gr input{margin:6px 0}body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}input{-webkit-user-select:text;user-select:text}#ov{display:none;position:fixed;inset:0;z-index:9;background:#0a1f28f5;place-items:center;padding:24px;text-align:center}.stat{font-family:"Trebuchet MS",sans-serif;color:var(--mute)}
+</style></head>
+<body>
+<div id="w"></div>
+<div id="hud"><span class="r" id="rn">Siaga</span><div class="bar" id="bar"><i id="bi" style="width:20%"></i></div><span id="pct">20%</span><div class="slots" id="sl"></div><button id="mu" onclick="mute()" aria-label="Nyalakan atau matikan suara">🔊</button></div>
+<main id="stage"></main>
+<div id="ov" role="alertdialog" aria-live="assertive"></div>
+<script>
+const $=s=>document.querySelector(s);
+const SC=[
+{win:"Cahaya matahari menyambutmu. KM Samudra‑7 mengapung perlahan dan kamu berhasil menyelamatkan diri",lose:"Air mencapai langit‑langit kapal dan lampu padam. KM Samudra‑7 perlahan tenggelam ke dasar laut."},
+{win:"Pintu darurat terbuka dan udara segar menyambutmu di tangga menuju permukaan. Kamu berhasil keluar dari basement",lose:"Air banjir mencapai langit‑langit basement dan lampu padam. Gelap dan sunyi."}
+];
+function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function fmt(n){n=Math.round(n*100)/100;let[a,b]=String(n).split(".");a=a.replace(/\B(?=(\d{3})+(?!\d))/g,".");return b?a+","+b:a}
+function build(seed,sc){
+ const r=rng(seed),pick=a=>a[Math.floor(r()*a.length)],ri=(a,b)=>a+Math.floor(r()*(b-a+1)),U=sc?10:1;
+ const V=pick([10,12,15,20,25])/U,e=pick([2000,2500,3000,3500,4000])/U,k=ri(2,9),M=1000*V+e;
+ const ms=[e-1000/U,e-400/U,e+100*k/U,e+2000/U];
+ const nz=sc?["Kardus arsip","Karung pasir","Genset kecil","Lemari besi"]:["Peti suku cadang","Tabung gas cadangan","Generator cadangan","Mesin bor"];
+ const od=[0,1,2,3];for(let i=3;i>0;i--){const j=Math.floor(r()*(i+1));[od[i],od[j]]=[od[j],od[i]]}
+ const net=1000*k/U,FA=10000*V,dd=ri(2,9),n=pick([4,5,8,10]),F1=100*dd,W=F1*n;
+ const [D1,D2,v1]=pick([[20,10,1],[20,10,1.25],[20,10,1.5],[20,10,2],[30,10,1]]),v2=v1*(D1/D2)**2;
+ const v=ri(2,9),h=v*v/20,wd=sc?"rakit":"kapal";
+ return[
+ {n:sc?"Gudang Bawah Tanah":"Ruang Kargo",t:"Hukum Archimedes",
+  s:sc?["{n}, kamu tersadar di basement gedung tua. Hujan semalaman membuat ruang bawah tanah kebanjiran. Air keruh naik cepat dan lampu darurat berkedip.",`Satu‑satunya jalan ke tangga adalah rakit darurat dari drum plastik. Papan petunjuk: <i>Volume total drum ${fmt(V)} m³ (terendam penuh). Massa jenis air 1.000 kg/m³. g = 10 m/s². Massa rakit beserta muatan ${fmt(M)} kg.</i>`]
+   :["Kapten {n}, kamu terbangun karena guncangan keras. Lampu darurat berkedip merah. Dari retakan lambung, air laut menetes ke lantai ruang kargo.",`Panel di dinding menyala: <i>Volume kapal ${fmt(V)} m³. Massa jenis air laut 1.000 kg/m³. g = 10 m/s². Massa kapal beserta muatan ${fmt(M)} kg.</i>`,"Kapal terus tenggelam. Kamu hanya punya satu tuas pelepas muatan."],
+  q:`Ada satu tuas pelepas muatan. ${wd[0].toUpperCase()+wd.slice(1)} baru naik jika berat totalnya lebih kecil daripada gaya apung. Muatan mana yang harus kamu buang agar ${wd} naik, dengan massa terbuang sesedikit mungkin?`,
+  o:od.map(i=>`${nz[i]}, ${fmt(ms[i])} kg`),a:od.indexOf(2),
+  f:"Gaya apung: <b>F<sub>A</sub> = ρ · g · V</b><br>Berat total: <b>w = m · g</b><br>Syarat naik: <b>w &lt; F<sub>A</sub></b><br>Gaya naik bersih: <b>F<sub>A</sub> − w</b>",
+  ok:`Kamu membuang ${nz[2].toLowerCase()} dan ${wd} bergetar naik. F_A = 1.000 × 10 × ${fmt(V)} = ${fmt(FA)} N, sedangkan berat awal ${fmt(10*M)} N. Massa harus berkurang lebih dari ${fmt(e)} kg, jadi ${nz[2].toLowerCase()} ${fmt(ms[2])} kg yang paling pas. Gaya naik bersih = ${fmt(FA)} − ${fmt(10*(M-ms[2]))} = ${fmt(net)} N.`,
+  d:k,dn:`Layar menampilkan ${fmt(net)} N, ${sc?"ratusannya":"ribuannya"}`},
+ {n:sc?"Lorong Gerbang Besi":"Lorong Pintu Macet",t:"Hukum Pascal",
+  s:[sc?"Rakit mengantarmu ke ujung lorong, tetapi gerbang besi menuju tangga macet karena karat. Air sudah setinggi lutut.":"Kapal naik sedikit, tetapi pintu antar-ruang macet karena lambung bengkok. Air sudah setinggi mata kaki.",`Di dinding ada dongkrak hidraulik. Beban ${sc?"gerbang":"pintu"} ${fmt(W)} N. Luas penampang besar (F₂) adalah ${n} kali luas penampang kecil (F₁).`],
+  q:`Berapa gaya minimum (dalam N) yang harus kamu berikan pada penampang kecil untuk mengangkat ${sc?"gerbang":"pintu"}?`,u:"N",a:F1,
+  f:`Hukum Pascal: <b>P₁ = P₂</b><br><b>F₁/A₁ = F₂/A₂</b><br>Gaya kecil: <b>F₁ = F₂ · (A₁/A₂)</b><br>Di sini A₂ = ${n} · A₁, jadi A₁/A₂ = 1/${n}`,
+  ok:`Kamu menekan tuas dan ${sc?"gerbang":"pintu"} terangkat. F₁ = F₂ × A₁/A₂ = ${fmt(W)} × 1/${n} = ${fmt(F1)} N. Dongkrak membuat gaya kecil menghasilkan gaya besar, tetapi tuasnya harus kamu tekan jauh.`,
+  d:dd,dn:`Angka ratusan dari ${fmt(F1)} N`},
+ {n:"Ruang Pipa",t:"Persamaan Kontinuitas",
+  s:[sc?"Di balik gerbang ada ruang pompa banjir. Air terus naik dan satu-satunya jalan keluar adalah membuka katup pembuangan.":"Di balik pintu ada ruang pompa. Air membanjir dan satu-satunya jalan keluar adalah membuka katup pembuangan.",`Papan petunjuk: <i>Pipa utama berdiameter ${D1} cm, air mengalir ${fmt(v1)} m/s. Dekat katup, pipa menyempit menjadi ${D2} cm.</i> Katup hanya terbuka jika kelajuan di bagian sempit kamu masukkan dengan tepat.`],
+  q:"Berapa kelajuan air (dalam m/s) di bagian pipa yang menyempit?",u:"m/s",a:v2,
+  f:"Kontinuitas: <b>A₁ · v₁ = A₂ · v₂</b><br>Luas pipa: <b>A = ¼ · π · d²</b>, sehingga A sebanding dengan d²<br><b>v₂ = v₁ · (d₁/d₂)²</b>",
+  ok:`Katup berdesis dan air surut ke selokan. A₁v₁ = A₂v₂, dan karena A sebanding dengan d², v₂ = ${fmt(v1)} × (${D1}/${D2})² = ${fmt(v2)} m/s. Pipa menyempit, air makin cepat.`,
+  d:v2,dn:`Kelajuan di katup, ${fmt(v2)} m/s`},
+ {n:sc?"Tandon Air":"Tangki Cadangan",t:"Persamaan Bernoulli",
+  s:[sc?"Kamu tiba di ruang tandon. Tandon air terbuka bocor di dinding, dan semburannya menghalangi tangga menuju pintu darurat.":"Kamu tiba di ruang tangki. Tangki air tawar yang terbuka bocor di dinding, dan semburannya menghalangi tangga menuju palka.",`Lubang bocor berada ${fmt(h)} m di bawah permukaan air. Ambil g = 10 m/s² dan abaikan kelajuan penurunan permukaan air.`],
+  q:"Berapa kelajuan semburan air (dalam m/s) dari lubang itu? Jika kamu tahu, kamu bisa memperkirakan arah semburan dan menyelinap lewat.",u:"m/s",a:v,
+  f:"Bernoulli: <b>P + ½ρv² + ρgh = konstan</b><br>Permukaan dan lubang sama-sama kena udara luar (P sama), v permukaan ≈ 0<br>Torricelli: <b>v = √(2 · g · h)</b>",
+  ok:`Kamu melangkah melewati semburan dengan aman. v = √(2gh) = √(2 × 10 × ${fmt(h)}) = √${v*v} = ${v} m/s. Semakin dalam lubangnya, semakin kencang semburannya.`,
+  d:v,dn:`Kelajuan semburan, ${v} m/s`},
+ {n:sc?"Pintu Darurat":"Pintu Palka",t:"Kunci terakhir",c:1,
+  s:[sc?"Di ujung tangga, pintu darurat baja terkunci. Papan kode empat digit menunggu. Dari celahnya, tampak cahaya lampu tangga menuju permukaan.":"Di ujung tangga, palka baja berkilau. Di atasnya, papan kode empat digit menunggu. Lewat celah, kamu melihat cahaya permukaan.","Buka <b>catatan kode</b> di bagian atas layar. Susun angka dari ruang pertama sampai ruang terakhir."],
+  q:"Masukkan 4 angka kunci sesuai urutan ruang.",u:"",a:""+k+dd+v2+v,
+  f:"Kode = <b>[angka ruang 1][angka ruang 2][angka ruang 3][angka ruang 4]</b><br>Lihat catatan kode di bagian atas layar.",ok:""}
+ ];
+}
+function key(sc){const sd=parseInt($("#ks").value),o=$("#kk");
+ if($("#kp").value!=="guru2026")return o.innerHTML="<p class='bad'>Sandi salah.</p>";
+ if(!(sd>=1000&&sd<=9999))return o.innerHTML="<p class='bad'>Isi nomor soal 1000–9999.</p>";
+ const B=build(sd,sc);
+ o.innerHTML=B.map((x,i)=>`<p><b>${x.n}</b>: ${i===0?"ABCD"[x.a]+". "+x.o[x.a]:x.a}</p>`).join("");
+}
+let S,AC,MG,on=1,mode="off",tm,dr,beat=0;
+function reset(){S={room:-1,sc:0,water:20,digits:[],wrong:0,name:"",sel:null,seed:0,R:null,leaves:0,over:0}}
+function nm(){return S.name||"Kadet"}
+function cur(){return S.R[S.room]}
+function hud(){
+ $("#w").style.height=S.water+"%";$("#bi").style.width=S.water+"%";$("#pct").textContent=S.water+"%";
+ $("#bar").className="bar"+(S.water>=70?" hi":"");
+ $("#rn").textContent=S.room<0?"Siaga":cur().n;
+ $("#sl").innerHTML=[0,1,2,3].map(i=>`<b>${S.digits[i]??""}</b>`).join("");
+}
+/* ===== Musik (dibuat dengan Web Audio, tanpa file luar) ===== */
+function ctx(){if(!AC){AC=new(window.AudioContext||window.webkitAudioContext)();MG=AC.createGain();MG.gain.value=on?.55:0;MG.connect(AC.destination)}if(AC.state!=="running")AC.resume();return AC}
+function tn(f,t,d,ty,v){const o=AC.createOscillator(),g=AC.createGain();o.type=ty;o.frequency.value=f;g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v,t+.02);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g);g.connect(MG);o.start(t);o.stop(t+d+.05)}
+function stopM(){clearTimeout(tm);if(dr){const t=AC.currentTime;dr.g.gain.cancelScheduledValues(t);dr.g.gain.setTargetAtTime(0,t,.3);dr.o.forEach(o=>o.stop(t+1.5));dr=null}}
+function pulse(){if(mode!=="play")return;const t=AC.currentTime,b=beat++;
+ tn(58,t,.28,"sine",.9);tn(116,t,.15,"triangle",.3);tn(52,t+.17,.22,"sine",.6);
+ if(b%8===0)tn(1319,t+.3,1.4,"sine",.12);
+ if(b%16===5){tn(185,t,2,"triangle",.1);tn(196,t,2,"triangle",.1)}
+ if(S.water>=60)tn(880,t+.3,.1,"square",.04);
+ tm=setTimeout(pulse,60000/(62+S.water*.8))}
+function music(m){mode=m;if(m==="off"){if(AC)stopM();return}
+ ctx();stopM();const t=AC.currentTime+.05;
+ if(m==="play"){const g=AC.createGain(),f=AC.createBiquadFilter();f.type="lowpass";f.frequency.value=170;g.gain.value=.0001;g.gain.setTargetAtTime(.22,AC.currentTime,1.5);
+  const o=[49,49.8,73.4].map((fr,i)=>{const x=AC.createOscillator();x.type=i<2?"sawtooth":"sine";x.frequency.value=fr;x.connect(f);x.start();return x});
+  f.connect(g);g.connect(MG);dr={o,g};beat=0;pulse()}
+ if(m==="win"){[[523,0],[659,.15],[784,.3],[1047,.45],[784,.8],[1047,.95],[1319,1.1],[1568,1.25]].forEach(([f,d])=>{tn(f,t+d,.5,"triangle",.5);tn(f*2,t+d,.3,"sine",.12)});
+  [523,659,784,1047].forEach(f=>tn(f,t+1.6,2.4,"triangle",.3));for(let i=0;i<8;i++)tn(2093+i*220,t+1.7+i*.12,.25,"sine",.1)}
+ if(m==="lose"){[[440,0],[392,1],[349,2],[330,3.1]].forEach(([f,d])=>{tn(f,t+d,2.2,"triangle",.45);tn(f/2,t+d,2.2,"sine",.3)});
+  const x=AC.createOscillator(),g=AC.createGain();x.type="sawtooth";x.frequency.setValueAtTime(110,t);x.frequency.exponentialRampToValueAtTime(35,t+6);g.gain.setValueAtTime(.08,t);g.gain.exponentialRampToValueAtTime(.0001,t+6);x.connect(g);g.connect(MG);x.start(t);x.stop(t+6.1);
+  for(let i=0;i<7;i++)tn(500-i*40,t+.5+i*.7,.15,"sine",.12)}}
+function mute(){on=!on;if(AC)MG.gain.value=on?.55:0;$("#mu").textContent=on?"🔊":"🔇"}
+let away=0;
+document.addEventListener("visibilitychange",()=>{
+ if(AC)document.hidden?AC.suspend():AC.resume();
+ if(document.hidden){if(S&&S.room>=0&&!S.over)away=1;return}
+ if(!away)return;away=0;S.leaves++;const pen=S.leaves>1;
+ if(pen)water(10);
+ $("#ov").innerHTML=`<div><h2>Kamu meninggalkan halaman game</h2><p>${pen?`Sudah ${S.leaves} kali. Air naik 10% dan guru akan melihat catatan ini.`:"Ini peringatan pertama. Jika kamu keluar lagi, air naik 10% dan tercatat untuk gurumu."}</p><button class="go" onclick="$('#ov').style.display='none'">Kembali ke game</button></div>`;
+ $("#ov").style.display="grid"});
+["contextmenu","copy","cut","dragstart"].forEach(e=>document.addEventListener(e,x=>{if(!(x.target.closest&&x.target.closest("input")))x.preventDefault()}));
+/* ===== Permainan ===== */
+function water(n){S.water=Math.min(100,S.water+n);hud();if(S.water>=100)lose()}
+function intro(){
+ music("off");hud();
+ $("#stage").innerHTML=`<h1>Escape Room Fluida</h1>
+ <p>Kamu terjebak dan air terus naik. Selesaikan teka‑teki fisika di setiap ruang. Setiap jawaban benar memberi satu angka untuk kode pintu terakhir.</p>
+ <p class="warn">Setiap jawaban salah mempercepat air naik. Jika air mencapai 100%, kamu tenggelam. Tombol <b>Rumus bantu</b> di setiap soal gratis, jadi pakailah. Jangan keluar dari halaman game: berpindah tab atau aplikasi dicatat dan menambah air.</p>
+ <p>Siapa namamu, awak?</p>
+ <input id="nama" class="nm" maxlength="30" placeholder="Ketik namamu" autocomplete="off">
+ <p>Nomor soal (dari guru, boleh dikosongkan):</p><input id="ns" class="nm" style="width:150px" inputmode="numeric" maxlength="4" placeholder="1000‑9999" autocomplete="off">
+ <p>Pilih tempat kamu terjebak (nyalakan suara agar lebih seru):</p>
+ <div class="row"><button class="go" onclick="begin(0)">Kapal selam bocor</button><button class="go" onclick="begin(1)">Basement kebanjiran</button></div>
+ <details class="gr"><summary>Untuk guru</summary><input id="kp" class="nm" type="password" placeholder="Sandi guru"><input id="ks" class="nm" inputmode="numeric" maxlength="4" placeholder="Nomor soal"><div class="row"><button onclick="key(0)">Kunci: kapal selam</button><button onclick="key(1)">Kunci: basement</button></div><div id="kk"></div></details>`;
+}
+function begin(sc){S.name=$("#nama").value.trim();S.sc=sc;const n=parseInt($("#ns").value);S.seed=n>=1000&&n<=9999?n:1000+Math.floor(Math.random()*9000);S.R=build(S.seed,sc);enter(0)}
+function enter(i){S.over=0;S.room=i;S.sel=null;if(mode!=="play")music("play");hud();draw()}
+function draw(){
+ const r=cur();
+ let h=`<h2>${r.n}</h2><p class="tp">${r.t}</p>`+r.s.map(x=>`<p>${x.replaceAll("{n}",nm())}</p>`).join("")+`<div class="q"><b>Tantangan:</b> ${r.q}</div>`;
+ if(r.o)h+=r.o.map((o,i)=>`<button class="opt" onclick="pick(this,${i})">${"ABCD"[i]}. ${o}</button>`).join("");
+ else h+=`<label class="in"><input id="a" inputmode="${r.c?"numeric":"decimal"}" ${r.c?'maxlength="4"':""} placeholder="${r.c?"····":"Angka"}" autocomplete="off" onkeydown="if(event.key==='Enter')ans()"><span>${r.u}</span></label>`;
+ h+=`<div class="row"><button class="go" onclick="ans()">${r.c?"Buka pintu":"Kunci jawaban"}</button><button onclick="fm()">Rumus bantu</button></div><div id="hb"></div><div id="fb"></div>`;
+ $("#stage").innerHTML=h;window.scrollTo(0,0);
+}
+function pick(b,i){S.sel=i;document.querySelectorAll(".opt").forEach(x=>x.classList.remove("on"));b.classList.add("on")}
+function fm(){const b=$("#hb");b.innerHTML=b.innerHTML?"":`<div class="fm"><b>Rumus bantu</b><br>${cur().f}</div>`}
+function say(t){const f=$("#fb");if(f){f.innerHTML=`<p class="bad">${t}</p>`;f.classList.remove("shake");void f.offsetWidth;f.classList.add("shake")}}
+function ans(){
+ const r=cur();let ok;
+ if(r.o){if(S.sel===null)return say("Pilih satu jawaban dulu.");ok=S.sel===r.a}
+ else{const raw=$("#a").value.trim().replace(",",".");if(raw==="")return say("Ketik angkanya dulu.");
+  ok=r.c?raw===r.a:Math.abs(parseFloat(raw)-r.a)<.01}
+ if(ok){if(r.c)return win();S.digits.push(r.d);hud();
+  $("#stage").innerHTML=`<h2>${r.n}</h2><div class="ok"><p>${r.ok}</p><p class="dig">${r.dn}: angka kunci <b>${r.d}</b></p></div><div class="row"><button class="go" onclick="enter(${S.room+1})">Lanjut ke ruang berikutnya</button></div>`;window.scrollTo(0,0)}
+ else{S.wrong++;say(r.c?"Kode salah. Pintu tidak bergerak dan air naik. Cek lagi catatan kodemu.":"Belum tepat. Air naik lebih cepat. Periksa rumus dan hitunganmu.");water(r.c?10:12)}
+}
+function win(){
+ S.over=1;music("win");
+ const g=S.wrong===0?"Kapten Samudra":S.wrong<=2?"Navigator":"Kadet Penyelam";
+ $("#stage").innerHTML=`<h1>Kamu selamat!</h1><p>${SC[S.sc].win}, ${nm()}.</p>
+ <div class="q stat">Peringkat: <b style="color:var(--lamp)">${g}</b><br>Jawaban salah: ${S.wrong}<br>Sisa ruang udara: ${100-S.water}%<br>Nomor soal: #${S.seed}<br>Keluar dari halaman: ${S.leaves} kali<br>Kode pintu: ${S.R[4].a}</div>
+ <div class="q"><b>Refleksi:</b> Konsep mana (Archimedes, Pascal, kontinuitas, Bernoulli) yang paling menyelamatkanmu? Jelaskan dengan kata‑katamu sendiri. Tunjukkan layar ini kepada gurumu.</div>
+ <div class="row"><button class="go" onclick="reset();intro()">Main lagi</button></div>`;
+}
+function lose(){
+ S.over=1;music("lose");
+ $("#stage").innerHTML=`<h1>Kamu tenggelam</h1><p>${SC[S.sc].lose}</p><p class="stat">Ruang terakhir: ${cur().n}. Nomor soal: #${S.seed}. Keluar dari halaman: ${S.leaves} kali. Awak yang baik belajar dari kesalahan.</p>
+ <div class="row"><button class="go" onclick="S.water=40;enter(S.room)">Ulangi ruang ini</button><button onclick="reset();intro()">Mulai dari awal</button></div>`;
+}
+reset();intro();
+</script></body></html>
